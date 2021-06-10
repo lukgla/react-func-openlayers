@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 // openlayers
 import GeoJSON from 'ol/format/GeoJSON'
 import Feature from 'ol/Feature';
-
+import Circle from 'ol/geom/Circle'
 // components
 import MapWrapper from './components/MapWrapper'
 
@@ -19,23 +19,30 @@ function App() {
   //  GeoJson API (read from flat .json file in public directory)
   useEffect( () => {
 
-    fetch('/mock-geojson-api.json')
-      .then(response => response.json())
-      .then( (fetchedFeatures) => {
+    // fetch('/mock-geojson-api.json')
+    //   .then(response => response.json())
+    //   .then( (fetchedFeatures) => {
 
-        // parse fetched geojson into OpenLayers features
-        //  use options to convert feature from EPSG:4326 to EPSG:3857
-        const wktOptions = {
-          dataProjection: 'EPSG:4326',
-          featureProjection: 'EPSG:3857'
-        }
-        const parsedFeatures = new GeoJSON().readFeatures(fetchedFeatures, wktOptions)
+    //     // parse fetched geojson into OpenLayers features
+    //     //  use options to convert feature from EPSG:4326 to EPSG:3857
+    //     const wktOptions = {
+    //       dataProjection: 'EPSG:4326',
+    //       featureProjection: 'EPSG:3857'
+    //     }
+    //     const parsedFeatures = new GeoJSON().readFeatures(fetchedFeatures, wktOptions)
 
         // set features into state (which will be passed into OpenLayers
         //  map component as props)
-        setFeatures(parsedFeatures)
+        const circle=new Feature({
+          geometry: new Circle( [2059973.85640, 7271440.95016],50)
+        })
+        const circle2=new Feature({
+          geometry: new Circle( [2059972.85600, 7271440.95016],100)
+        })
 
-      })
+        setFeatures([circle,circle2])
+
+      // })
 
   },[])
   
