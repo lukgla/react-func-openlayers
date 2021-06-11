@@ -9,65 +9,60 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import XYZ from "ol/source/XYZ";
 import { transform } from "ol/proj";
-import { toStringXY } from "ol/coordinate";
+// import { toStringXY } from "ol/coordinate"; //value to string
 import Overlay from "ol/Overlay.js";
 import Geolocation from "ol/Geolocation.js";
 import LineString from 'ol/geom/LineString.js';
 
 
-function MapWrapper(props) {
-  // set intial state
+function MapWrapper({features}) {
   const [map, setMap] = useState();
   const [featuresLayer, setFeaturesLayer] = useState();
-  // const [selectedCoord, setSelectedCoord] = useState();
 
   const mapElement = useRef();
   const mapRef = useRef();
   mapRef.current = map;
-
-  const geolocationMarker = useRef();
-  console.log("fuck")
   useEffect(() => {
-    const initalFeaturesLayer = new VectorLayer({
+    const pos=navigator.geolocation
+    pos.getCurrentPosition((e)=>alert(e))
+
+    //#region map setup
+    const initalFeaturesLayer = new VectorLayer({ 
       source: new VectorSource(),
     });
-
-    // const PlayerLocationLayer = new VectorLayer({
-    //   source: new VectorSource(),
-    // });
 
     const view = new View({
       projection: "EPSG:3857",
       center: [0, 0],
       zoom: 2,
     });
+    const titleLayer=new TileLayer({
+      source: new XYZ({
+        url: "http://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}",
+      }),})
 
     const initialMap = new Map({
       target: mapElement.current,
       layers: [
-        new TileLayer({
-          source: new XYZ({
-            url: "http://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}",
-          }),
-        }),
-
+        titleLayer,
         initalFeaturesLayer,
-        // PlayerLocationLayer,
       ],
       view: view,
       controls: [],
     });
-
-    // set map onclick handler
+    
     initialMap.on("click", handleMapClick);
     const positions = new LineString([], 'XYZM');
     let deltaMean = 500;
+    const markerE1=document.getElementById("marker")
     const marker = new Overlay({
       positioning: "center-center",
-      element: geolocationMarker.current,
+      element: markerE1,
       stopEvent: false,
     });
     initialMap.addOverlay(marker);
+    //#endregion
+    //#region geoSetup
     const geolocation = new Geolocation({
       projection: view.getProjection(),
       trackingOptions: {
@@ -83,7 +78,6 @@ function MapWrapper(props) {
       const heading = geolocation.getHeading() || 0;
       const speed = geolocation.getSpeed() || 0;
       const m = Date.now();
-      console.log()
       addPosition(position, heading, m, speed);
 
       const coords = positions.getCoordinates();
@@ -92,23 +86,24 @@ function MapWrapper(props) {
         deltaMean = (coords[len - 1][3] - coords[0][3]) / (len - 1);
       }
 
-      console.log(
-        [
+      
+      const data=  [
           "Position: " + position[0].toFixed(2) + ", " + position[1].toFixed(2),
           "Accuracy: " + accuracy,
           "Heading: " + Math.round(radToDeg(heading)) + "&deg;",
           "Speed: " + (speed * 3.6).toFixed(1) + " km/h",
           "Delta: " + Math.round(deltaMean) + "ms",
-        ].join("<br />")
-      );
+        ]
+      console.log(data);
     });
 
-    geolocation.on("error", function () {
+    geolocation.on("error", function (e) {
       alert("geolocation error");
+      alert(e.toString())
       // FIXME we should remove the coordinates in positions
     });
-
-    //#region
+    //#endregion
+    //#region geoRender
     // convert radians to degrees
     function radToDeg(rad) {
       return (rad * 360) / (Math.PI * 2);
@@ -122,7 +117,7 @@ function MapWrapper(props) {
       return ((n % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     }
 
-    function addPosition(position, heading, m, speed) {
+    function addPosition(position, heading, m, speed) { //this is tracking last pos
       const x = position[0];
       const y = position[1];
       const fCoords = positions.getCoordinates();
@@ -145,10 +140,11 @@ function MapWrapper(props) {
 
       // FIXME use speed instead
       if (heading && speed) {
-        geolocationMarker.current.src = "data/geolocation_marker_heading.png";
+        markerE1.classList = ['fa fa-location-arrow']; // w ruchu
       } else {
-        geolocationMarker.current.src = "data/geolocation_marker.png";
+        markerE1.classList = ['fa fa-dot-circle-o']; //stoi
       }
+      //TODO change this for ico
     }
 
     // recenters the view by putting the given coordinates at 3/4 from the top or
@@ -172,102 +168,30 @@ function MapWrapper(props) {
       // interpolate position along positions LineString
       const c = positions.getCoordinateAtM(m, true);
       if (c) {
-        view.setCenter(getCenterWithHeading(c, -c[2], view.getResolution()));
-        view.setRotation(-c[2]);
+        // view.setCenter(getCenterWithHeading(c, -c[2], view.getResolution()));
+        // view.setRotation(-c[2]); 
         marker.setPosition(c);
-        map.render();
+        initialMap.render();
       }
     }
      geolocation.setTracking(true); // Start position tracking
-    // geolocate device
-    // const geolocateBtn = document.getElementById("geolocate");
-    // geolocateBtn.addEventListener(
-    //   "click",
-    //   function () {
-    //     // geolocation.setTracking(true); // Start position tracking
 
-    //     tileLayer.on("postrender", updateView);
+        titleLayer.on("postrender", updateView);
         initialMap.render();
-
-    //     disableButtons();
-    //   },
-    //   false
-    // );
-
-    // // simulate device move
-    // let simulationData;
-    // const client = new XMLHttpRequest();
-    // client.open("GET", "data/geolocation-orientation.json");
-
-    /**
-     * Handle data loading.
-     */
-    // client.onload = function () {
-    //   simulationData = JSON.parse(client.responseText).data;
-    // };
-    // client.send();
-
-    // const simulateBtn = document.getElementById("simulate");
-    // simulateBtn.addEventListener(
-    //   "click",
-    //   function () {
-    //     const coordinates = simulationData;
-
-    //     const first = coordinates.shift();
-    //     simulatePositionChange(first);
-
-    //     let prevDate = first.timestamp;
-    //     function geolocate() {
-    //       const position = coordinates.shift();
-    //       if (!position) {
-    //         return;
-    //       }
-    //       const newDate = position.timestamp;
-    //       simulatePositionChange(position);
-    //       window.setTimeout(function () {
-    //         prevDate = newDate;
-    //         geolocate();
-    //       }, (newDate - prevDate) / 0.5);
-    //     }
-    //     geolocate();
-
-    //     tileLayer.on("postrender", updateView);
-    //     map.render();
-
-    //     disableButtons();
-    //   },
-    //   false
-    // );
-
-    // function simulatePositionChange(position) {
-    //   const coords = position.coords;
-    //   geolocation.set("accuracy", coords.accuracy);
-    //   geolocation.set("heading", degToRad(coords.heading));
-    //   const projectedPosition = fromLonLat([coords.longitude, coords.latitude]);
-    //   geolocation.set("position", projectedPosition);
-    //   geolocation.set("speed", coords.speed);
-    //   geolocation.changed();
-    // }
-
-    // function disableButtons() {
-    //   geolocateBtn.disabled = "disabled";
-    //   simulateBtn.disabled = "disabled";
-    // }
     //#endregion
 
-    // save map and vector layer references to state
     setMap(initialMap);
     setFeaturesLayer(initalFeaturesLayer);
   }, []);
 
   useEffect(() => {
-    if (props.features.length) {
+    if (features.length) {
       // may be null on first render
 
       // set features to map
       featuresLayer.setSource(
         new VectorSource({
-          features: props.features, // make sure features is an array
+          features: features, // make sure features is an array
         })
       );
 
@@ -276,28 +200,23 @@ function MapWrapper(props) {
         padding: [100, 100, 100, 100],
       });
     }
-  }, [props.features]);
+  }, [features]);
 
   // map click handler
   const handleMapClick = (event) => {
-    // get clicked coordinate using mapRef to access current React state inside OpenLayers callback
-    //  https://stackoverflow.com/a/60643670
+
     const clickedCoord = mapRef.current.getCoordinateFromPixel(event.pixel);
 
-    // transform coord to EPSG 4326 standard Lat Long
-    const transormedCoord = transform(clickedCoord, "EPSG:3857", "EPSG:4326");
-    // set React state
-    console.log(transormedCoord)
-    // setSelectedCoord(transormedCoord);
+    // const transormedCoord = transform(clickedCoord, "EPSG:3857", "EPSG:4326"); //standard lat
+    const transormedCoord = transform(clickedCoord, "EPSG:3857", "EPSG:3857"); //standart mapy
+    // console.log(transormedCoord)
   };
 
-  // render component
   return (
     <div>
       <div ref={mapElement} className="map-container"></div>
-      <img ref={geolocationMarker} id="marker" style={{background: "black",width:"100px",height:"100px" }} ></img>
-      <div className="clicked-coord-label">
-        {/* <p>{selectedCoord ? toStringXY(selectedCoord, 5) : ""}</p> */}
+        <i className="fa fa-location-arrow" id='marker'></i>
+        <div className="clicked-coord-label">
       </div>
     </div>
   );
